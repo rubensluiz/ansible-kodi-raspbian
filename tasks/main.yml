@@ -1,0 +1,73 @@
+---
+# tasks file for kodi
+
+- name: Add pipplware repository key
+  apt_key:
+    url: http://pipplware.pplware.pt/pipplware/key.asc
+    state: present
+
+- name: Add pipplware repository
+  apt_repository:
+    repo: deb http://pipplware.pplware.pt/pipplware/dists/stretch/main/binary /
+    state: present
+
+- name: Install packages
+  apt: name={{ item }} update_cache=yes cache_valid_time=600
+  with_items:
+    - kodi
+    - policykit-1
+
+- name: Adjust gpu memory split
+  lineinfile:
+    dest: /boot/config.txt
+    regexp: '^gpu_mem'
+    line: 'gpu_mem={{ memory_split }}'
+
+- name: Enable VP6, VP8, MJPEG, Theora Codecs
+  lineinfile:
+    dest: /boot/config.txt
+    regexp: '^start_x'
+    line: 'start_x=1'
+
+- name: Add groups
+  group: name={{ item }} state=present
+  with_items:
+    - audio
+    - video
+    - input
+    - dialout
+    - plugdev
+    - tty
+
+- name: Add groups to user pi
+  user:
+    name: pi
+    groups: audio,video,input,dialout,plugdev,tty
+    append: yes
+
+- name: Add udev rules
+  copy:
+    src: etc/udev/rules.d/
+    dest: /etc/udev/rules.d/
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable all users to shutdown
+  copy:
+    src: etc/polkit-1/localauthority/50-local.d/
+    dest: /etc/polkit-1/localauthority/50-local.d/
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Add kodi as service
+  copy:
+    src: etc/systemd/system/
+    dest: /etc/systemd/system/
+
+- name: Enable kodi service
+  systemd:
+    name: kodi
+    state: started
+    enabled: true
